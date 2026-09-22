@@ -1,0 +1,19 @@
+name: Checkov Security Scan
+
+on:
+  push:
+    branches: [ "master", "main" ]
+
+jobs:
+  scan-infrastructure:
+    runs-on: ubuntu-latest
+    # Run directly inside the lightweight Checkov container
+    container:
+      image: bridgecrew/checkov:latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        run: checkov -d . --framework terraform
