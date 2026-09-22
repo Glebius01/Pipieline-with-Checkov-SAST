@@ -154,4 +154,4 @@ Besides the 2 vulnerabilities I deliberately left in the code, Checkov conducted
 
 In real enterprise environments, passing all 11 of those checks requires building a web of interdependent Azure resources (Virtual Networks, Subnets, Key Vaults, Private Endpoints, Managed Identities, Access Policies) which is out-of-scope of this lab.
 
-Thus, we successfully built a "Shift-Left" pipeline that intercepted misconfigured IaC code and blocked deployment before cloud execution. Let's now try again, but this time with a more secure version.
+Thus, we successfully built a "Shift-Left" pipeline that intercepted misconfigured IaC code and blocked deployment before cloud execution.
