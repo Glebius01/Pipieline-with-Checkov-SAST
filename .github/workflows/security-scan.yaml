@@ -1,19 +1,33 @@
-name: Checkov Security Scan
+name: Checkov CIS Azure Benchmark Scan
 
 on:
   push:
     branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
 
 jobs:
-  scan-infrastructure:
+  scan-cis-azure:
+    name: Checkov Scan
     runs-on: ubuntu-latest
-    # Run directly inside the lightweight Checkov container
-    container:
-      image: bridgecrew/checkov:latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      # Step 1: Checkout the code
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
+      # Step 2: Run Checkov Action configured for CIS Azure Framework
       - name: Run Checkov
-        run: checkov -d . --framework terraform
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          framework: cis_azure
+          output_format: cli,sarif
+          output_file_path: console,results.sarif
+          soft_fail: false # Set to true if you don't want failed checks to break the workflow
+
+      # Step 3: Upload SARIF report for GitHub Security tab
+      - name: Upload SARIF file
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: results.sarif
