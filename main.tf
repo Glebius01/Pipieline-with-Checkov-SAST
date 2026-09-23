@@ -46,11 +46,11 @@ resource "azurerm_subscription_policy_assignment" "cis" {
 # INFRASTRUCTURE HARDENING: COMPLIANT STORAGE ACCOUNT
 # ---------------------------------------------------------
 
+resource "azurerm_storage_account" "lab" {
 #checkov:skip=CKV2_AZURE_1: "Managed by Azure platform-managed keys for standalone lab scope."
 #checkov:skip=CKV2_AZURE_33: "Private endpoints omitted for standalone lab environment without VNet."
 #checkov:skip=CKV_AZURE_33: "Queue logging handled via subscription-level Azure Monitor diagnostic settings."
 
-resource "azurerm_storage_account" "lab" {
   name                     = "securelabstorage9988"
   resource_group_name      = azurerm_resource_group.lab.name
   location                 = azurerm_resource_group.lab.location
