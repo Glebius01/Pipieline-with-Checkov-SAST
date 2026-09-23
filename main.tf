@@ -13,36 +13,64 @@ provider "azurerm" {
   features {}
 }
 
+# 1. Resource Group
 resource "azurerm_resource_group" "lab" {
   name     = "devsecops-lab-rg"
   location = "Western Europe"
 }
 
-# 1. PARENT MODULE: Creates and Hardens the Storage Account
-module "storage_account" {
-  source  = "Azure/avm-res-storage-storageaccount/azurerm"
-  version = "0.2.0" # Use a stable parent module version
+# ---------------------------------------------------------
+# CLOUD GOVERNANCE: CIS INITIATIVE ASSIGNMENT
+# ---------------------------------------------------------
 
-  name                = "securelabstorage9988"
-  resource_group_name = azurerm_resource_group.lab.name
-  location            = azurerm_resource_group.lab.location
+data "azurerm_subscription" "current" {}
 
+data "azurerm_policy_set_definition" "cis" {
+  display_name = "CIS Microsoft Azure Foundations Benchmark v2.0.0"
+}
+
+resource "azurerm_subscription_policy_assignment" "cis" {
+  name                 = "lab-cis-benchmark"
+  display_name         = "Lab CIS Azure Foundations Benchmark"
+  subscription_id      = data.azurerm_subscription.current.id
+  policy_definition_id = data.azurerm_policy_set_definition.cis.id
+  location             = "Western Europe"
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+# ---------------------------------------------------------
+# INFRASTRUCTURE HARDENING: COMPLIANT STORAGE ACCOUNT
+# ---------------------------------------------------------
+
+resource "azurerm_storage_account" "lab" {
+  name                     = "securelabstorage9988"
+  resource_group_name      = azurerm_resource_group.lab.name
+  location                 = azurerm_resource_group.lab.location
   account_tier             = "Standard"
   account_replication_type = "GRS"
 
-  # CIS / Security Baseline Inputs
-  min_tls_version                 = "TLS1_2"
   public_network_access_enabled   = false
+  min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
-  enable_https_traffic_only       = true
-}
+  https_traffic_only_enabled      = true
+  shared_access_key_enabled       = false
 
-# 2. SUB-MODULE (Optional): Creates a Container inside the Storage Account
-module "storage_container" {
-  source  = "Azure/avm-res-storage-storageaccount/azurerm//modules/container"
-  version = "0.2.0"
+  network_rules {
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
+  }
 
-  name                  = "secure-data-container"
-  storage_account_name  = module.storage_account.name
-  container_access_type = "private" # Ensures container is private
+  blob_properties {
+    delete_retention_policy {
+      days = 7
+    }
+    container_delete_retention_policy {
+      days = 7
+    }
+  }
+
+  infrastructure_encryption_enabled = true
 }
