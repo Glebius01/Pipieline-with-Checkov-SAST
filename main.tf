@@ -58,6 +58,7 @@ resource "azurerm_storage_account" "lab" {
 # Attaching a child container to the storage account, where all the data will be stored.
 
 resource "azurerm_storage_container" "lab_container" {
+  #checkov:skip=CKV2_AZURE_21: Logging is enforced via Azure Monitor Diagnostic Settings in monitoring.tf
   name                  = "test-data"
   storage_account_name  = azurerm_storage_account.lab.name
   container_access_type = "private"
