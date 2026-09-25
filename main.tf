@@ -11,6 +11,8 @@ terraform {
 # Authentication to Azure is handled via the azurerm provider, which uses the Azure CLI or environment variables for credentials.
 provider "azurerm" {
   features {}
+  # Tells Terraform to use Zero Trust Entra ID instead of legacy access keys
+  storage_use_azuread = true
 }
 
 # Creates a resource group in Azure to contain all resources for the lab environment.
@@ -32,7 +34,7 @@ resource "azurerm_storage_account" "lab" {
   account_tier             = "Standard"
   account_replication_type = "GRS"
 
-  public_network_access_enabled   = false
+  public_network_access_enabled   = true
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
   https_traffic_only_enabled      = true
@@ -41,6 +43,7 @@ resource "azurerm_storage_account" "lab" {
   network_rules {
     default_action = "Deny"
     bypass         = ["AzureServices"]
+    ip_rules       = [var.my_ip]
   }
 
   blob_properties {
@@ -62,4 +65,9 @@ resource "azurerm_storage_container" "lab_container" {
   name                  = "test-data"
   storage_account_name  = azurerm_storage_account.lab.name
   container_access_type = "private"
+  
+# STOP & WAIT until Azure confirms the role assignment is complete.
+  depends_on = [
+    azurerm_role_assignment.human_contributor
+  ]
 }
