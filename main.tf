@@ -1,4 +1,4 @@
-# Configure the Azure provider
+# The engine - fetches azurerm plugin and sets up the required version of Terraform.
 terraform {
   required_providers {
     azurerm = {
@@ -8,50 +8,25 @@ terraform {
   }
   required_version = ">= 1.1.0"
 }
-
+# Authentication to Azure is handled via the azurerm provider, which uses the Azure CLI or environment variables for credentials.
 provider "azurerm" {
   features {}
 }
 
-# 1. Resource Group
+# Creates a resource group in Azure to contain all resources for the lab environment.
 resource "azurerm_resource_group" "lab" {
   name     = "devsecops-lab-rg"
-  location = "Western Europe"
+  location = "ukwest"
 }
 
-# ---------------------------------------------------------
-# CLOUD GOVERNANCE: CIS INITIATIVE ASSIGNMENT
-# ---------------------------------------------------------
-
-data "azurerm_subscription" "current" {}
-
-data "azurerm_policy_set_definition" "cis" {
-  display_name = "CIS Microsoft Azure Foundations Benchmark v2.0.0"
-}
-
-resource "azurerm_subscription_policy_assignment" "cis" {
-  name                 = "lab-cis-benchmark"
-  display_name         = "Lab CIS Azure Foundations Benchmark"
-  subscription_id      = data.azurerm_subscription.current.id
-  policy_definition_id = data.azurerm_policy_set_definition.cis.id
-  location             = "Western Europe"
-
-  identity {
-    type = "SystemAssigned"
-  }
-}
-
-# ---------------------------------------------------------
-# ---------------------------------------------------------
-# INFRASTRUCTURE HARDENING: COMPLIANT STORAGE ACCOUNT
-# ---------------------------------------------------------
+# The following resource block creates a storage account in Azure with specific security configurations.
 
 resource "azurerm_storage_account" "lab" {
 #checkov:skip=CKV2_AZURE_1: "Managed by Azure platform-managed keys for standalone lab scope."
 #checkov:skip=CKV2_AZURE_33: "Private endpoints omitted for standalone lab environment without VNet."
 #checkov:skip=CKV_AZURE_33: "Queue logging handled via subscription-level Azure Monitor diagnostic settings."
 
-  name                     = "securelabstorage9988"
+  name                     = "secure1lab2storage"
   resource_group_name      = azurerm_resource_group.lab.name
   location                 = azurerm_resource_group.lab.location
   account_tier             = "Standard"
@@ -78,4 +53,12 @@ resource "azurerm_storage_account" "lab" {
   }
 
   infrastructure_encryption_enabled = true
+}
+
+# Attaching a child container to the storage account, where all the data will be stored.
+
+resource "azurerm_storage_container" "lab_container" {
+  name                  = "test-data"
+  storage_account_name  = azurerm_storage_account.lab.name
+  container_access_type = "private"
 }
