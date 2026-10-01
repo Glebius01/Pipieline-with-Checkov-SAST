@@ -16,6 +16,47 @@ The purpose of this lab is to gain hands-on experience with Infrastructure as Co
 - Documentation for each product
 - Gemini as a tutor
 
+## Lab Chart
+
+```mermaid
+graph TD
+    subgraph Control_Plane ["CONTROL PLANE (Identity & Provisioning)"]
+        A["Local Admin / CI/CD"] -->|"Terraform Apply"| B["Azure Resource Manager (ARM)"]
+        A -->|"az login"| C["Microsoft Entra ID (Azure AD)"]
+        C -->|"RBAC Assignment (Storage Blob Data Contributor)"| D["Entra ID Principal / Service Principal"]
+        
+        subgraph DevSecOps ["DevSecOps Static Analysis"]
+            E["Checkov / IaC Scanner"] -->|"Scans Code against CIS Benchmarks"| A
+        end
+    end
+
+    subgraph Data_Plane ["DATA PLANE (Enforced Network & Access Limits)"]
+        F["Whitelisted Admin IP"] -->|"OAuth Token + HTTPS"| G["Storage Firewall (Default: Deny)"]
+        H["Unauthorized / Public IPs"] -->|"Blocked by Firewall Rules"| G
+        
+        G -->|"shared_access_key_enabled = false"| I["Secretless OAuth Enforcement"]
+        D -.->|"Authorized via Entra ID Token"| I
+        
+        I --> J["Private Blob Container: test-data"]
+    end
+
+    subgraph Telemetry ["MONITORING & SEC OPS"]
+        J -->|"Data-Plane Telemetry (PutBlob, GetBlob)"| K["Diagnostic Settings (/blobServices/default)"]
+        K -->|"Streams Audit Logs"| L["Log Analytics Workspace"]
+        M["SOC / Detection Engineer"] -->|"KQL Telemetry Audit (AuthenticationType == OAuth)"| L
+    end
+
+    %% Styling
+    classDef control fill:#1f2937,stroke:#3b82f6,stroke-width:2px,color:#fff;
+    classDef data fill:#111827,stroke:#10b981,stroke-width:2px,color:#fff;
+    classDef monitoring fill:#1e1b4b,stroke:#8b5cf6,stroke-width:2px,color:#fff;
+    
+    class Control_Plane,DevSecOps control;
+    class Data_Plane data;
+    class Telemetry monitoring;
+
+```
+
 ## Part 1. Preparation
 
 Installing VS Code and all necessary extensions. Creating the "Dev-sec-ops-lab" folder, initialising tools, authenticating, and verifying everything works:
@@ -309,8 +350,6 @@ resource "azurerm_role_assignment" "human_contributor" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 ```
----
-
 ```
 #--------------
 # Identity.tf
@@ -353,11 +392,10 @@ resource "azurerm_monitor_diagnostic_setting" "blob_logs" {
   }
 }
 ``` 
----
 To be able to access the storage account from my personal PC (public network) I had to create a variable in a dedicated .tf file, where it fetches my current IP that is stored in a sensitive file - terraform.tfvars. Then, I had to whitelist it in main.tf or alternatively, via Azure GUI. In any case, turning on public access fails Checkov scan, so I had to exclude the rule from checks.
 
 Eventually, I provisioned the container using benefits of a trial version of Azure account, uploaded a honeyfile and enumerated directory. I validated that logging works by running KQL query on Azure.
----
+
 ```
 variable "my_ip" {
   description = "My local IP address for testing"
@@ -372,43 +410,5 @@ network_rules {
     ip_rules       = [var.my_ip]
   }
 ```
-![alt text](image.png)
-![alt text](<Screenshot 2026-09-25 162954.jpg>)
-
-## Lab Chart
-
-graph TD
-    subgraph Control_Plane ["CONTROL PLANE (Identity & Provisioning)"]
-        A["Local Admin / CI/CD"] -->|"Terraform Apply"| B["Azure Resource Manager (ARM)"]
-        A -->|"az login"| C["Microsoft Entra ID (Azure AD)"]
-        C -->|"RBAC Assignment (Storage Blob Data Contributor)"| D["Entra ID Principal / Service Principal"]
-        
-        subgraph DevSecOps ["DevSecOps Static Analysis"]
-            E["Checkov / IaC Scanner"] -->|"Scans Code against CIS Benchmarks"| A
-        end
-    end
-
-    subgraph Data_Plane ["DATA PLANE (Enforced Network & Access Limits)"]
-        F["Whitelisted Admin IP"] -->|"OAuth Token + HTTPS"| G["Storage Firewall (Default: Deny)"]
-        H["Unauthorized / Public IPs"] -->|"Blocked by Firewall Rules"| G
-        
-        G -->|"shared_access_key_enabled = false"| I["Secretless OAuth Enforcement"]
-        D -.->|"Authorized via Entra ID Token"| I
-        
-        I --> J["Private Blob Container: test-data"]
-    end
-
-    subgraph Telemetry ["MONITORING & SEC OPS"]
-        J -->|"Data-Plane Telemetry (PutBlob, GetBlob)"| K["Diagnostic Settings (/blobServices/default)"]
-        K -->|"Streams Audit Logs"| L["Log Analytics Workspace"]
-        M["SOC / Detection Engineer"] -->|"KQL Telemetry Audit (AuthenticationType == OAuth)"| L
-    end
-
-    %% Styling
-    classDef control fill:#1f2937,stroke:#3b82f6,stroke-width:2px,color:#fff;
-    classDef data fill:#111827,stroke:#10b981,stroke-width:2px,color:#fff;
-    classDef monitoring fill:#1e1b4b,stroke:#8b5cf6,stroke-width:2px,color:#fff;
-    
-    class Control_Plane,DevSecOps control;
-    class Data_Plane data;
-    class Telemetry monitoring;
+<img width="1536" height="951" alt="monitoring works" src="https://github.com/user-attachments/assets/916ebd38-81cf-4ada-ae9d-4ef625912b60" />
+<img width="1911" height="977" alt="Screenshot 2026-09-25 162954" src="https://github.com/user-attachments/assets/63800ef8-22b9-46e8-a0c6-64a472c35f58" />
